@@ -14,6 +14,7 @@ import {
 
 declare const process: { env: Record<string, string | undefined> } | undefined;
 
+//const DEFAULT_BASE = "http://localhost:8000/api";
 const DEFAULT_BASE = "https://traderiserproapp.onrender.com/api";
 
 export function apiBase(): string {
