@@ -1,6 +1,6 @@
 {
   "name": "Equity Mobile",
-  "short_name": "Equity",
+  "short_name": "Equity Mobile",
   "description": "Equity Mobile banking: balances, transfers, airtime and account management.",
   "start_url": "/",
   "scope": "/",
