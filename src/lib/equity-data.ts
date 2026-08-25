@@ -1,6 +1,6 @@
-// Shared types + demo data for the Equity mobile clone.
-// The real data comes from the Django backend (see src/lib/equity-api.ts);
-// this demo payload keeps the UI populated when no API is configured.
+// Shared types + formatting helpers for the Equity mobile clone.
+// All data is served by the Django backend (see src/lib/equity-api.ts).
+// There is no mock/demo data in this app.
 
 export type Account = {
   id: number;
@@ -31,88 +31,25 @@ export type Notification = {
   created_at: string;
 };
 
+export type QuickAction = { id: string; label: string };
+
 export type HomePayload = {
   greeting: string;
   primary_account: Account | null;
   accounts: Account[];
   total_balance: number;
+  quick_actions?: QuickAction[];
 };
 
-export const demoAccounts: Account[] = [
-  {
-    id: 1,
-    account_name: "Shee 💃🌸",
-    account_number: "0630185598928",
-    account_type: "Savings Account",
-    balance: 400.95,
-    currency: "KES",
-    is_primary: true,
-    loan_limit: 0,
-  },
-];
-
-export const demoHome: HomePayload = {
-  greeting: "Good evening, Elizabeth",
-  primary_account: demoAccounts[0] ?? null,
-  accounts: demoAccounts,
-  total_balance: 400.95,
+export const emptyHome: HomePayload = {
+  greeting: "",
+  primary_account: null,
+  accounts: [],
+  total_balance: 0,
+  quick_actions: [],
 };
 
-export const demoTransactions: Transaction[] = [
-  {
-    id: 1,
-    amount: 50,
-    transaction_type: "withdrawal_credit",
-    description:
-      "You have received 50.00 KES from SASHITRENDY TECHNOLOGY 0***3723 to your Equity account 0***8928.",
-    reference: "X2BE471FA0AFA",
-    balance_after: 400.95,
-    created_at: "2026-08-24T20:46:00+03:00",
-  },
-  {
-    id: 2,
-    amount: -20,
-    transaction_type: "airtime",
-    description: "Airtime purchase 254*****854 Safaricom",
-    reference: "X2BE0091AB12",
-    balance_after: 350.95,
-    created_at: "2026-08-23T09:12:00+03:00",
-  },
-  {
-    id: 3,
-    amount: 500,
-    transaction_type: "credit",
-    description: "Salary credit",
-    reference: "X2BE7712CD41",
-    balance_after: 370.95,
-    created_at: "2026-08-20T13:02:00+03:00",
-  },
-];
-
-export const demoNotifications: Notification[] = [
-  {
-    id: 1,
-    title: "You have received 50.00 KES",
-    body: "You have received 50.00 KES from SASHITRENDY TECHNOLOGY 0***3723 to your Equity account 0***8928. Ref. X2BE471FA0AFA on 24 Aug 2026 at 20:46 EAT.",
-    is_read: false,
-    created_at: "2026-08-24T20:46:00+03:00",
-  },
-  {
-    id: 2,
-    title: "Loan limit updated",
-    body: "Your Equity loan limit has been refreshed. Check Borrow for your new limit.",
-    is_read: false,
-    created_at: "2026-08-22T08:00:00+03:00",
-  },
-];
-
-export const profile = {
-  fullName: "Elizabeth Wanjiku Karanja",
-  initials: "EW",
-  email: "shikcmuiruri@gmail.com",
-  phone: "+254 794 277854",
-};
-
+// Indicative FX display rates (the backend has no equity FX endpoint).
 export const forexRate = {
   base: "USD",
   quote: "KES",
@@ -122,11 +59,28 @@ export const forexRate = {
   sell: 131.75,
 };
 
-export function money(value: number) {
-  return value.toLocaleString("en-KE", {
+export function num(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function money(value: unknown) {
+  return num(value).toLocaleString("en-KE", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+export function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "EQ";
+  const first = parts[0]?.[0] ?? "";
+  const second = parts[1]?.[0] ?? parts[0]?.[1] ?? "";
+  return `${first}${second}`.toUpperCase();
+}
+
+export function nameFromGreeting(greeting: string) {
+  return greeting.includes(",") ? (greeting.split(",")[1] ?? "").trim() : greeting.trim();
 }
 
 export function maskAccount(accountNumber: string) {
@@ -136,6 +90,7 @@ export function maskAccount(accountNumber: string) {
 
 export function formatWhen(iso: string) {
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
   return `${d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} at ${d
     .toTimeString()
     .slice(0, 5)} EAT`;

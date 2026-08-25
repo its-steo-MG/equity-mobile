@@ -52,3 +52,16 @@ src/app/            App Router pages (/, /accounts, /send, /notifications, /sett
 src/components/equity/  Shell (top bar, bottom nav), cards, screens
 src/lib/            API client, types, demo data, helpers
 ```
+
+## Backend connection
+
+Set `NEXT_PUBLIC_API_URL` to your Django API root (default `https://traderiserproapp.onrender.com/api`).
+
+Endpoints used:
+
+- `POST /accounts/login/` and `POST /accounts/token/refresh/` (JWT, stored as `access_token` / `refresh_token`)
+- `GET /equity/home/`, `/equity/accounts/`, `/equity/transactions/`, `/equity/notifications/`
+- `POST /equity/notifications/<id>/read/`
+
+Sign in at `/login`. Until you sign in (or if the API is unreachable) the UI shows bundled demo data.
+Add your frontend origin to `CORS_ALLOWED_ORIGINS` in Django settings.

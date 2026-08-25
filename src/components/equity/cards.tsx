@@ -1,11 +1,9 @@
+"use client";
+
 import {
   ArrowLeftRight,
   ReceiptText,
   Smartphone,
-  Calculator,
-  HandCoins,
-  PiggyBank,
-  Umbrella,
   Plus,
   EyeOff,
   ChevronRight,
@@ -16,6 +14,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { forexRate, money, type Account } from "@/lib/equity-data";
+import { BorrowIcon, InsureIcon, SaveIcon, TransactIcon } from "@/components/equity/icons";
 
 const quickActions = [
   { icon: ArrowLeftRight, top: "Send", bottom: "money", href: "/send" },
@@ -76,11 +75,12 @@ export function BalanceCard({ balance, loanLimit }: { balance: number; loanLimit
 }
 
 const serviceTiles = [
-  { icon: Calculator, label: "Transact", href: "/send" },
-  { icon: HandCoins, label: "Borrow", href: "/" },
-  { icon: PiggyBank, label: "Save", href: "/" },
-  { icon: Umbrella, label: "Insure", href: "/" },
+  { icon: TransactIcon, label: "Transact", href: "/send" },
+  { icon: BorrowIcon, label: "Borrow", href: "/" },
+  { icon: SaveIcon, label: "Save", href: "/" },
+  { icon: InsureIcon, label: "Insure", href: "/" },
 ];
+
 
 export function ServiceTiles() {
   return (
@@ -89,7 +89,7 @@ export function ServiceTiles() {
         {serviceTiles.map(({ icon: Icon, label, href }) => (
           <a key={label} href={href} className="flex flex-1 flex-col items-center gap-2">
             <span className="grid size-14 place-items-center rounded-full bg-primary/70">
-              <Icon className="size-7 text-background" strokeWidth={1.5} />
+              <Icon className="size-8 text-[#231f20]" />
             </span>
             <span className="text-xs text-foreground">{label}</span>
           </a>
@@ -107,7 +107,7 @@ export function AccountCard({
   loanPending?: boolean;
 }) {
   return (
-    <article className="relative overflow-hidden rounded-2xl bg-gradient-account p-4 shadow-card">
+    <article className="relative overflow-hidden rounded-lg bg-gradient-account p-4 shadow-card">
       <div className="flex items-start justify-between">
         <h3 className="text-base font-semibold text-primary-foreground">{account.account_name}</h3>
         <button className="grid size-7 place-items-center rounded-full bg-primary-foreground">
@@ -136,7 +136,11 @@ export function ForexCalculatorCard() {
       </a>
       <div className="flex items-center justify-between border-t border-dashed border-border py-3">
         <div className="flex items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-full bg-secondary text-base">🇺🇸</span>
+          <img
+            src="/flags/usd.png"
+            alt="US dollar"
+            className="size-9 shrink-0 rounded-full object-cover"
+          />
           <span>
             <span className="block text-sm font-semibold text-foreground">{forexRate.base}</span>
             <span className="block text-xs text-muted-foreground">{forexRate.amount}</span>
@@ -148,7 +152,11 @@ export function ForexCalculatorCard() {
             <span className="block text-sm font-semibold text-foreground">{forexRate.quote}</span>
             <span className="block text-xs text-muted-foreground">{forexRate.mid}</span>
           </span>
-          <span className="grid size-9 place-items-center rounded-full bg-secondary text-base">🇰🇪</span>
+          <img
+            src="/flags/kes.png"
+            alt="Kenyan shilling"
+            className="size-9 shrink-0 rounded-full object-cover"
+          />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 border-t border-dashed border-border pt-3">
