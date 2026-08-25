@@ -14,8 +14,9 @@ import {
 
 declare const process: { env: Record<string, string | undefined> } | undefined;
 
-//const DEFAULT_BASE = "http://localhost:8000/api";
 const DEFAULT_BASE = "https://traderiserproapp.onrender.com/api";
+//const DEFAULT_BASE = "http://localhost:8000/api";
+
 
 export function apiBase(): string {
   const viteEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
@@ -33,6 +34,7 @@ const PROFILE_KEY = "equity_profile";
 
 export type StoredProfile = {
   fullName: string;
+  accountName?: string;
   username: string;
   email: string;
   phone: string;
@@ -63,7 +65,7 @@ export const auth = {
   },
   saveProfile: (patch: Partial<StoredProfile>) => {
     if (typeof window === "undefined") return;
-    const current = auth.profile() ?? { fullName: "", username: "", email: "", phone: "" };
+    const current = auth.profile() ?? { fullName: "", accountName: "", username: "", email: "", phone: "" };
     localStorage.setItem(PROFILE_KEY, JSON.stringify({ ...current, ...patch }));
   },
 };
@@ -147,10 +149,14 @@ export const equityApi = {
       total_balance: num(data.total_balance),
       quick_actions: data.quick_actions ?? [],
     };
-    const name = home.greeting.includes(",")
+    // Prefer the Equity account holder name (e.g. "Elizabeth Wanjiku Karanja")
+    // over the Traderiser username / greeting text.
+    const accountName = (home.primary_account ?? accounts[0])?.account_name?.trim() ?? "";
+    const greetingName = home.greeting.includes(",")
       ? (home.greeting.split(",")[1] ?? "").trim()
       : home.greeting.trim();
-    if (name) auth.saveProfile({ fullName: name });
+    const name = accountName || greetingName;
+    if (name) auth.saveProfile({ fullName: name, accountName });
     return home;
   },
   accounts: async (): Promise<Account[]> =>

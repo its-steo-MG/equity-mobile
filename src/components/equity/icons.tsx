@@ -34,7 +34,7 @@ export function EquityLogo({ className = "w-10" }: { className?: string }) {
         fontSize="30"
         fontWeight="900"
         letterSpacing="0.5"
-        fill="#ffffff"
+        className="fill-foreground"
         fontFamily="Arial Black, Arial, Helvetica, sans-serif"
       >
         EQUITY

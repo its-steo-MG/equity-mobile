@@ -71,17 +71,44 @@ export function money(value: unknown) {
   });
 }
 
+/**
+ * Initials from the FIRST letter of the first two names.
+ * "Sospeter Chaka Samuel" -> "SC" (never "SO").
+ */
 export function initialsOf(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const parts = String(name ?? "")
+    .trim()
+    .split(/[\s._\-@]+/)
+    .filter(Boolean);
   if (parts.length === 0) return "EQ";
-  const first = parts[0]?.[0] ?? "";
-  const second = parts[1]?.[0] ?? parts[0]?.[1] ?? "";
-  return `${first}${second}`.toUpperCase();
+  const first = (parts[0]?.[0] ?? "").toUpperCase();
+  if (parts.length === 1) return first || "EQ";
+  const second = (parts[1]?.[0] ?? "").toUpperCase();
+  return `${first}${second}`;
+}
+
+/** Current hour in East Africa Time regardless of the device timezone. */
+export function eatHour(now: Date = new Date()) {
+  const hour = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Nairobi",
+    hour: "2-digit",
+    hour12: false,
+  }).format(now);
+  return Number(hour) % 24;
+}
+
+/** "Good morning" / "Good afternoon" / "Good evening" based on EAT. */
+export function greetingEAT(now: Date = new Date()) {
+  const h = eatHour(now);
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 export function nameFromGreeting(greeting: string) {
   return greeting.includes(",") ? (greeting.split(",")[1] ?? "").trim() : greeting.trim();
 }
+
 
 export function maskAccount(accountNumber: string) {
   if (!accountNumber) return "0***0000";

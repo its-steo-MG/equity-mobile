@@ -151,3 +151,67 @@
     color: var(--color-foreground);
   }
 }
+
+/* Light mode (Dark mode toggle off in the side menu) */
+.light {
+  --background: oklch(0.985 0.002 20);
+  --app-canvas: oklch(0.985 0.002 20);
+  --foreground: oklch(0.22 0.01 20);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.01 20);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.01 20);
+  --primary: oklch(0.53 0.2 22);
+  --primary-foreground: oklch(0.99 0.005 20);
+  --secondary: oklch(0.95 0.012 20);
+  --secondary-foreground: oklch(0.3 0.02 20);
+  --muted: oklch(0.95 0.008 20);
+  --muted-foreground: oklch(0.5 0.015 20);
+  --accent: oklch(0.95 0.015 20);
+  --accent-foreground: oklch(0.25 0.02 20);
+  --border: oklch(0.9 0.008 20);
+  --input: oklch(0.9 0.008 20);
+  --ring: oklch(0.53 0.2 22);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.22 0.01 20);
+  --sidebar-border: oklch(0.9 0.008 20);
+  --shadow-card: 0 12px 30px -18px oklch(0.4 0.05 20 / 35%);
+}
+
+/* Opening splash animation */
+@keyframes eq-burst {
+  0% { transform: scale(0.05); opacity: 0; }
+  35% { transform: scale(1.05); opacity: 1; }
+  70% { transform: scale(1.15); opacity: 0.9; }
+  100% { transform: scale(0.1); opacity: 0; }
+}
+@keyframes eq-rays {
+  0% { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+  40% { transform: scale(1) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1.25) rotate(8deg); opacity: 0; }
+}
+@keyframes eq-logo-in {
+  0%, 35% { opacity: 0; transform: scale(0.9); }
+  60% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes eq-splash-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.eq-burst { animation: eq-burst 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.eq-rays { animation: eq-rays 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.eq-logo { animation: eq-logo-in 2s ease-out forwards; }
+.eq-splash-out { animation: eq-splash-out 0.5s ease-in forwards; }
+
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+}

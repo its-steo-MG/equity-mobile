@@ -51,13 +51,22 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): Load
 export function useProfile() {
   const [profile, setProfile] = useState({
     fullName: "",
+    accountName: "",
     username: "",
     email: "",
     phone: "",
   });
 
   useEffect(() => {
-    const read = () => setProfile(auth.profile() ?? { fullName: "", username: "", email: "", phone: "" });
+    const read = () =>
+      setProfile({
+        fullName: "",
+        accountName: "",
+        username: "",
+        email: "",
+        phone: "",
+        ...(auth.profile() ?? {}),
+      });
     read();
     const id = window.setInterval(read, 2000);
     return () => window.clearInterval(id);
@@ -66,6 +75,11 @@ export function useProfile() {
   return {
     ...profile,
     signedIn: typeof window !== "undefined" && Boolean(auth.access()),
-    initials: profile.fullName || profile.username ? initialsOf(profile.fullName || profile.username) : "EQ",
+    // Initials always come from the Equity account holder name — never the
+    // Traderiser username: "Sospeter Chaka Samuel" -> "SC".
+    displayName: profile.accountName || profile.fullName || "",
+    initials: profile.accountName || profile.fullName
+      ? initialsOf(profile.accountName || profile.fullName)
+      : "EQ",
   };
 }

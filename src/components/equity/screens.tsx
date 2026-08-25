@@ -18,8 +18,12 @@ import {
   EyeOff,
   Loader2,
   RefreshCw,
+  ScanFace,
+  MoreHorizontal,
 } from "lucide-react";
 import { AppBackground, AppShell } from "./shell";
+import { SplashScreen } from "./splash";
+
 import {
   AccountCard,
   AccountsSummary,
@@ -30,9 +34,11 @@ import {
   ServiceTiles,
 } from "./cards";
 import { equityApi, auth, apiBase } from "@/lib/equity-api";
+import { expireSession, sessionFresh, touchActivity } from "@/lib/session";
 import { useApi, useProfile } from "@/lib/use-equity";
 import {
   formatWhen,
+  greetingEAT,
   initialsOf,
   money,
   nameFromGreeting,
@@ -40,6 +46,7 @@ import {
   type Notification,
   type Transaction,
 } from "@/lib/equity-data";
+
 
 function StateBlock({
   loading,
@@ -107,10 +114,10 @@ export function HomeScreen() {
   const primary = data?.primary_account ?? data?.accounts[0] ?? null;
 
   return (
-    <AppShell title="Home" active="home" showQr>
+    <AppShell title="Home" active="home" showQr onRefresh={home.reload}>
       {data ? (
         <p className="py-2 text-center text-lg text-foreground">
-          {data.greeting.split(",")[0]},{" "}
+          {greetingEAT()},{" "}
           <span className="font-semibold">
             {(primary?.account_name?.trim().split(/\s+/)[0] ||
               nameFromGreeting(data.greeting).split(/\s+/)[0]) ??
@@ -118,6 +125,7 @@ export function HomeScreen() {
           </span>
         </p>
       ) : null}
+
       <QuickActions />
       {data && primary ? (
         <BalanceCard balance={primary.balance} loanLimit={primary.loan_limit} />
@@ -188,7 +196,7 @@ export function AccountsScreen() {
   const data = home.data;
 
   return (
-    <AppShell title="Accounts" active="accounts">
+    <AppShell title="Accounts" active="accounts" onRefresh={home.reload}>
       <AccountsSummary total={data?.total_balance ?? 0} />
       <h2 className="mb-3 mt-6 text-xl font-semibold text-foreground">My accounts</h2>
       <StateBlock
@@ -259,45 +267,167 @@ export function SendMoneyScreen() {
   );
 }
 
+const notifFilters = [
+  { id: "all", label: "All" },
+  { id: "bank", label: "Bank account alerts" },
+  { id: "transaction", label: "Transaction alerts" },
+  { id: "reminder", label: "Reminders" },
+] as const;
+
+function matchesFilter(n: Notification, filter: string) {
+  if (filter === "all") return true;
+  const text = `${n.title} ${n.body}`.toLowerCase();
+  if (filter === "transaction")
+    return /sent|received|withdraw|deposit|transfer|kes|paid|transaction/.test(text);
+  if (filter === "bank") return /account|balance|statement|bank|loan|card/.test(text);
+  return /remind|due|expire|renew/.test(text);
+}
+
+function monthLabel(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Earlier";
+  return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+}
+
+function timeAndDate(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  const date = d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return `${time} \u2022 ${date}`;
+}
+
 export function NotificationsScreen() {
   const notif = useApi<Notification[]>(() => equityApi.notifications());
   const [items, setItems] = useState<Notification[]>([]);
+  const [filter, setFilter] = useState<string>("all");
+  const [unreadOnly, setUnreadOnly] = useState(false);
 
   useEffect(() => {
     if (notif.data) setItems(notif.data);
   }, [notif.data]);
+
+  const unread = items.filter((i) => !i.is_read).length;
 
   const markRead = (id: number) => {
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
     equityApi.markNotificationRead(id).catch(() => undefined);
   };
 
+  const markAllRead = () => {
+    const pending = items.filter((n) => !n.is_read);
+    setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    pending.forEach((n) => equityApi.markNotificationRead(n.id).catch(() => undefined));
+  };
+
+  const visible = items
+    .filter((n) => matchesFilter(n, filter))
+    .filter((n) => (unreadOnly ? !n.is_read : true));
+
+  const groups: { label: string; rows: Notification[] }[] = [];
+  visible.forEach((n) => {
+    const label = monthLabel(n.created_at);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.rows.push(n);
+    else groups.push({ label, rows: [n] });
+  });
+
   return (
-    <AppShell title="Notifications" active="home" unread={items.filter((i) => !i.is_read).length}>
+    <AppShell title="Notifications" active="home" unread={unread} onRefresh={notif.reload}>
+      <h2 className="mt-2 text-2xl font-semibold text-foreground">Notifications History</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        You have <span className="font-semibold text-foreground">{unread} unread</span> messages
+      </p>
+
+      <div className="-mx-4 mt-5 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {notifFilters.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            className={`shrink-0 rounded-lg border px-4 py-2 text-sm ${
+              filter === f.id
+                ? "border-primary text-primary"
+                : "border-border text-muted-foreground"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={unreadOnly}
+            onClick={() => setUnreadOnly((v) => !v)}
+            className={`relative h-7 w-12 rounded-full transition-colors ${
+              unreadOnly ? "bg-primary" : "bg-secondary"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 size-6 rounded-full bg-card shadow transition-all ${
+                unreadOnly ? "left-[1.4rem]" : "left-0.5"
+              }`}
+            />
+          </button>
+          <span className="text-sm text-foreground">Unread only</span>
+        </div>
+        <button onClick={markAllRead} className="text-sm font-medium text-primary">
+          Mark all as read
+        </button>
+      </div>
+
       <StateBlock
         loading={notif.loading}
         error={notif.error}
         unauthenticated={notif.unauthenticated}
-        empty={Boolean(notif.data && items.length === 0)}
-        emptyText="No notifications yet"
+        empty={Boolean(notif.data && visible.length === 0)}
+        emptyText="No notifications to show"
         onRetry={notif.reload}
       />
-      <ul className="mt-3 space-y-3">
-        {items.map((n) => (
-          <li
-            key={n.id}
-            onClick={() => !n.is_read && markRead(n.id)}
-            className="rounded-2xl border border-border bg-card p-4"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-foreground">{n.title}</p>
-              {!n.is_read ? <span className="size-2 rounded-full bg-primary" /> : null}
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{n.body}</p>
-            <p className="mt-2 text-[11px] text-muted-foreground">{formatWhen(n.created_at)}</p>
-          </li>
-        ))}
-      </ul>
+
+      {groups.map((group) => (
+        <div key={group.label} className="mt-6">
+          <p className="mb-3 text-sm font-semibold text-primary">{group.label}</p>
+          <ul className="space-y-3">
+            {group.rows.map((n) => (
+              <li
+                key={n.id}
+                onClick={() => !n.is_read && markRead(n.id)}
+                className="flex items-start gap-3 rounded-lg bg-secondary p-3"
+              >
+                <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-card">
+                  <Bell
+                    className={`size-5 ${n.is_read ? "text-muted-foreground" : "text-primary"}`}
+                    strokeWidth={1.8}
+                  />
+                  {!n.is_read ? (
+                    <span className="absolute left-0 top-0 size-2.5 rounded-full bg-primary" />
+                  ) : null}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-foreground">{n.title}</span>
+                  <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+                    {n.body}
+                  </span>
+                  <span
+                    className={`mt-1 block text-xs ${
+                      n.is_read ? "text-muted-foreground" : "text-foreground"
+                    }`}
+                  >
+                    {timeAndDate(n.created_at)}
+                  </span>
+                </span>
+                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-card">
+                  <MoreHorizontal className="size-4 text-primary" />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </AppShell>
   );
 }
@@ -388,7 +518,7 @@ export function SettingsScreen() {
           </span>
           <span>
             <span className="block text-sm font-semibold text-foreground">
-              {profile.fullName || profile.username || "Not signed in"}
+              {profile.displayName || "Not signed in"}
             </span>
             {profile.email ? (
               <span className="block text-xs text-muted-foreground">{profile.email}</span>
@@ -449,6 +579,8 @@ export function LoginScreen() {
   const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
+    // A fresh launch or 5+ idle minutes always requires the password again.
+    if (!sessionFresh()) expireSession();
     setSignedIn(auth.isSignedIn());
     const saved = auth.profile();
     if (saved?.email || saved?.username) {
@@ -463,6 +595,7 @@ export function LoginScreen() {
     setError(null);
     try {
       await equityApi.login(username.trim(), password);
+      touchActivity();
       setSignedIn(true);
       window.location.href = "/";
     } catch (err) {
@@ -491,14 +624,18 @@ export function LoginScreen() {
     );
   }
 
-  const displayName = stored.fullName || stored.username;
+  const displayName = stored.displayName;
   const initials = displayName ? initialsOf(displayName) : "EQ";
 
   return (
-    <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-app-canvas">
+    <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-[oklch(0.27_0.006_20)]">
+      <SplashScreen />
       <AppBackground />
 
-      <header className="relative flex items-center justify-between px-5 pb-2 pt-6">
+      <header
+        className="relative flex items-center justify-between px-5 pb-2 pt-6"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.25rem)" }}
+      >
         <span className="w-6" />
         <h1 className="text-base font-semibold text-white">Welcome back</h1>
         <MessageSquare className="size-6 text-white" strokeWidth={1.5} />
@@ -509,10 +646,11 @@ export function LoginScreen() {
           <span className="grid size-[76px] place-items-center rounded-full border-2 border-primary bg-black/40 text-lg font-semibold text-primary">
             {initials}
           </span>
-          <p className="mt-5 text-center text-2xl font-semibold text-white">
-            {displayName ? `Welcome back, ${displayName.split(" ")[0]}` : "Sign in to Equity"}
+          <p className="mt-5 text-center text-2xl font-medium text-white">
+            {displayName ? `${greetingEAT()}, ${displayName.split(" ")[0]}` : "Sign in to Equity"}
           </p>
         </div>
+
 
         <form onSubmit={submit} className="mt-16 flex flex-1 flex-col">
           {showUser ? (
@@ -566,13 +704,23 @@ export function LoginScreen() {
             </button>
           ) : null}
 
-          <button
-            type="submit"
-            disabled={busy || !password || !username}
-            className="mb-8 mt-auto w-full rounded-lg bg-white/25 py-4 text-base text-white/70 enabled:bg-primary enabled:font-semibold enabled:text-primary-foreground disabled:cursor-not-allowed"
-          >
-            {busy ? "Signing in…" : "Let me in"}
-          </button>
+          <div className="mb-8 mt-auto space-y-3">
+            <button
+              type="button"
+              onClick={() => setError("Face ID is not available on this device")}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary py-3.5 text-base font-medium text-primary"
+            >
+              <ScanFace className="size-5" strokeWidth={1.5} /> Sign in with Face ID
+            </button>
+            <button
+              type="submit"
+              disabled={busy || !password || !username}
+              className="w-full rounded-lg bg-white/25 py-4 text-base text-white/70 enabled:bg-primary enabled:font-semibold enabled:text-primary-foreground disabled:cursor-not-allowed"
+            >
+              {busy ? "Signing in…" : "Let me in"}
+            </button>
+          </div>
+
         </form>
       </div>
     </div>

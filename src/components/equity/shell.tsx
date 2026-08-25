@@ -1,8 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Bell, QrCode, Settings } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Bell, Loader2, QrCode, Settings } from "lucide-react";
+import { guardSession } from "@/lib/session";
 import { AccountsCardsIcon, EquityLogo } from "@/components/equity/icons";
+import { SideMenu } from "@/components/equity/sidebar";
+import { SplashScreen } from "@/components/equity/splash";
 
 import { useApi, useProfile } from "@/lib/use-equity";
 import { equityApi } from "@/lib/equity-api";
@@ -14,38 +17,44 @@ type ShellProps = {
   active: "accounts" | "home" | "settings";
   showQr?: boolean | undefined;
   unread?: number | undefined;
+  onRefresh?: (() => void) | undefined;
 };
 
 export function AppBackground() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute -left-1/4 top-24 h-[420px] w-[150%] rotate-[-28deg] bg-white/[0.04]" />
-      <div className="absolute -right-1/3 top-56 h-[420px] w-[150%] rotate-[28deg] bg-white/[0.05]" />
-      <div className="absolute -left-1/4 bottom-10 h-[420px] w-[150%] rotate-[-24deg] bg-white/[0.03]" />
+      <div className="absolute -left-1/4 top-24 h-[420px] w-[150%] rotate-[-28deg] bg-foreground/[0.045]" />
+      <div className="absolute -right-1/3 top-56 h-[420px] w-[150%] rotate-[28deg] bg-foreground/[0.05]" />
+      <div className="absolute -left-1/4 bottom-10 h-[420px] w-[150%] rotate-[-24deg] bg-foreground/[0.035]" />
     </div>
   );
 }
 
-export function Avatar() {
+export function Avatar({ onClick }: { onClick?: (() => void) | undefined }) {
   const profile = useProfile();
   return (
-    <a
-      href="/settings"
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Open menu"
       className="grid size-10 shrink-0 place-items-center rounded-full border border-primary/70 text-sm font-semibold text-primary"
     >
       {profile.initials}
-    </a>
+    </button>
   );
 }
+
 
 export function TopBar({
   title,
   showQr = false,
   unread,
+  onAvatarClick,
 }: {
   title: string;
   showQr?: boolean | undefined;
   unread?: number | undefined;
+  onAvatarClick?: (() => void) | undefined;
 }) {
   const notif = useApi<Notification[]>(() => equityApi.notifications());
   const count = unread ?? (notif.data ?? []).filter((n) => !n.is_read).length;
@@ -55,7 +64,8 @@ export function TopBar({
       className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-transparent px-4 pb-3 pt-5 backdrop-blur"
       style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.25rem)" }}
     >
-      <Avatar />
+      <Avatar onClick={onAvatarClick} />
+
       <h1 className="flex-1 text-center text-base font-semibold text-foreground">{title}</h1>
       <div className="flex items-center gap-3">
         {showQr ? <QrCode className="size-6 text-foreground" strokeWidth={1.5} /> : null}
@@ -114,13 +124,91 @@ function BottomNav({ active }: { active: ShellProps["active"] }) {
 }
 
 
-export function AppShell({ title, children, active, showQr, unread }: ShellProps) {
+export function AppShell({ title, children, active, showQr, unread, onRefresh }: ShellProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [pull, setPull] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const startY = useRef<number | null>(null);
+
+  // Ask for the password again on a fresh launch or after 5 idle minutes.
+  useEffect(() => {
+    return guardSession(() => {
+      window.location.href = "/login";
+    });
+  }, []);
+
+  const runRefresh = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    onRefresh?.();
+    window.setTimeout(() => setRefreshing(false), 1100);
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    startY.current = window.scrollY <= 2 ? (e.touches[0]?.clientY ?? null) : null;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (startY.current === null || refreshing) return;
+    const delta = (e.touches[0]?.clientY ?? 0) - startY.current;
+    if (delta > 0) setPull(Math.min(delta * 0.5, 80));
+  };
+  const onTouchEnd = () => {
+    if (pull > 45) runRefresh();
+    setPull(0);
+    startY.current = null;
+  };
+
+  const indicator = refreshing || pull > 6;
+
   return (
-    <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-app-canvas">
+    <div
+      className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-app-canvas"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      <SplashScreen />
       <AppBackground />
-      <TopBar title={title} showQr={showQr} unread={unread} />
-      <main className="relative flex-1 px-4 pb-32">{children}</main>
+      <TopBar
+        title={title}
+        showQr={showQr}
+        unread={unread}
+        onAvatarClick={() => setMenuOpen(true)}
+      />
+      {onRefresh ? (
+        <div
+          className="pointer-events-none relative z-20 flex items-center justify-center overflow-hidden transition-[height]"
+          style={{ height: indicator ? `${Math.max(pull, refreshing ? 42 : 0)}px` : "0px" }}
+        >
+          <Loader2
+            className={`size-6 text-primary ${refreshing ? "animate-spin" : ""}`}
+            style={{ transform: `rotate(${pull * 4}deg)` }}
+            strokeWidth={2}
+          />
+        </div>
+      ) : null}
+      <main
+        className="relative flex-1 px-4 pb-32"
+        style={{ transform: `translateY(${refreshing ? 0 : pull * 0.15}px)` }}
+      >
+        {children}
+      </main>
       <BottomNav active={active} />
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   );
 }
+
+/** Desktop / no-touch refresh helper button. */
+export function RefreshButton({ onClick, busy }: { onClick: () => void; busy?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mx-auto mt-2 flex items-center gap-2 rounded-full bg-card px-4 py-1.5 text-xs text-muted-foreground"
+    >
+      <Loader2 className={`size-3.5 ${busy ? "animate-spin" : ""}`} /> Refresh
+    </button>
+  );
+}
+
