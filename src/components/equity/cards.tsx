@@ -108,19 +108,27 @@ export function AccountCard({
 }) {
   return (
     <article className="relative overflow-hidden rounded-lg bg-gradient-account p-4 shadow-card">
-      <div className="flex items-start justify-between">
-        <h3 className="text-base font-semibold text-primary-foreground">{account.account_name}</h3>
-        <button className="grid size-7 place-items-center rounded-full bg-primary-foreground">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.07]">
+        <div className="absolute -left-10 top-2 h-40 w-[130%] rotate-[-24deg] bg-white" />
+        <div className="absolute -right-16 bottom-0 h-32 w-[130%] rotate-[22deg] bg-white" />
+      </div>
+      <div className="relative flex items-start justify-between gap-3">
+        <h3 className="min-w-0 truncate text-base font-semibold text-primary-foreground">
+          {account.account_name}
+        </h3>
+        <button className="grid size-7 shrink-0 place-items-center rounded-full bg-primary-foreground">
           <MoreHorizontal className="size-4 text-[#8f0f22]" />
         </button>
       </div>
-      <p className="mt-1 text-2xl font-semibold text-primary-foreground">
+      <p className="relative mt-1 text-2xl font-semibold text-primary-foreground">
         {money(account.balance)} {account.currency}
       </p>
-      {loanPending ? (
-        <p className="mt-1 text-sm text-primary-foreground/80">Fetching Loan Limit...</p>
-      ) : null}
-      <p className="mt-6 text-xs text-primary-foreground/90">
+      <p className="relative mt-1 text-sm text-primary-foreground/90">
+        {loanPending
+          ? "Fetching Loan Limit..."
+          : `Loan limit up to ${money(account.loan_limit)} ${account.currency}`}
+      </p>
+      <p className="relative mt-5 text-xs text-primary-foreground/90">
         {account.account_number} • {account.account_type}
       </p>
     </article>

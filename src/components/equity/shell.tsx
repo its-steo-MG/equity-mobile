@@ -51,7 +51,10 @@ export function TopBar({
   const count = unread ?? (notif.data ?? []).filter((n) => !n.is_read).length;
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-transparent px-4 pb-3 pt-5 backdrop-blur">
+    <header
+      className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-transparent px-4 pb-3 pt-5 backdrop-blur"
+      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.25rem)" }}
+    >
       <Avatar />
       <h1 className="flex-1 text-center text-base font-semibold text-foreground">{title}</h1>
       <div className="flex items-center gap-3">
@@ -74,7 +77,10 @@ export function TopBar({
 
 function BottomNav({ active }: { active: ShellProps["active"] }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-md items-end justify-between bg-app-canvas/95 px-8 pb-3 pt-2 backdrop-blur">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-md items-end justify-between bg-app-canvas/95 px-8 pb-3 pt-2 backdrop-blur"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
+    >
       <a
         href="/accounts"
         className={`flex flex-1 flex-col items-center gap-1 text-[11px] ${

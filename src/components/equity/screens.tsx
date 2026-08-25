@@ -111,7 +111,11 @@ export function HomeScreen() {
       {data ? (
         <p className="py-2 text-center text-lg text-foreground">
           {data.greeting.split(",")[0]},{" "}
-          <span className="font-semibold">{nameFromGreeting(data.greeting)}</span>
+          <span className="font-semibold">
+            {(primary?.account_name?.trim().split(/\s+/)[0] ||
+              nameFromGreeting(data.greeting).split(/\s+/)[0]) ??
+              ""}
+          </span>
         </p>
       ) : null}
       <QuickActions />
