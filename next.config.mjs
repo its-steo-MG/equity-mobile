@@ -33,6 +33,10 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+
+  // Required for Next.js 16 (Turbopack is now default)
+  // Empty object silences the "webpack config + no turbopack config" error
+  turbopack: {},
 };
 
 export default withPWA(nextConfig);
